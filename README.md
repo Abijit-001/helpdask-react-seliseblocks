@@ -1,2 +1,2 @@
 # helpdask-react-seliseblocks
-Testing to for react skill while learning blocks.
+Testing app for react skill while learning blocks.

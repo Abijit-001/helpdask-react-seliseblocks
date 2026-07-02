@@ -1,10 +1,19 @@
 import { useForm } from 'react-hook-form';
 import { useAuthDetails } from '@/auth/AuthContext';
-import { useGetTickets, useCreateTicket } from '../hooks/use-helpdesk';
+import { useGetTickets, useCreateTicket, useUpdateTicket } from '../hooks/use-helpdesk';
 import { Button } from '@/components/ui-kit/button';
 import { Input } from '@/components/ui-kit/input';
 import { Textarea } from '@/components/ui-kit/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui-kit/dialog';
+import { Pencil } from 'lucide-react';
 import { useState } from 'react';
+import { Ticket } from '../types/helpdesk.types';
 
 interface TicketFormValues {
   title: string;
@@ -13,38 +22,49 @@ interface TicketFormValues {
   priority: string;
 }
 
+const SELECT_CLASS =
+  'flex h-11 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-primary';
+
+const CATEGORIES = ['Software', 'Hardware', 'Network', 'Access', 'Other'];
+const PRIORITIES = ['Low', 'Medium', 'High', 'Urgent'];
+
+const priorityClass = (p: string) => {
+  if (p === 'Urgent') return 'bg-destructive/10 text-destructive';
+  if (p === 'High') return 'bg-warning/10 text-warning-high-emphasis';
+  if (p === 'Medium') return 'bg-primary/10 text-primary';
+  return 'bg-muted-foreground/10 text-medium-emphasis';
+};
+
+const statusClass = (s: string) => {
+  if (s === 'Resolved') return 'bg-success/10 text-success-high-emphasis';
+  if (s === 'In Progress') return 'bg-primary/10 text-primary';
+  return 'bg-warning/10 text-warning-high-emphasis';
+};
+
 export const RequesterPortal = () => {
   const { user } = useAuthDetails();
   const [page, setPage] = useState(1);
+  const [editingTicket, setEditingTicket] = useState<Ticket | null>(null);
 
-
-  // Fetch only this user's tickets
   const { data, isLoading, error, refetch } = useGetTickets(
     {
       pageNo: page,
       pageSize: 10,
-      filter: JSON.stringify({
-        RequesterId: user?.itemId || '',
-      }),
+      filter: JSON.stringify({ RequesterId: user?.itemId || '' }),
     },
     { enabled: !!user?.itemId }
   );
 
-
   const { mutateAsync: createTicket, isPending: isCreating } = useCreateTicket();
+  const { mutateAsync: updateTicket, isPending: isUpdating } = useUpdateTicket();
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<TicketFormValues>({
-    defaultValues: {
-      title: '',
-      description: '',
-      category: 'Software',
-      priority: 'Low',
-    },
+  // --- Create form ---
+  const createForm = useForm<TicketFormValues>({
+    defaultValues: { title: '', description: '', category: 'Software', priority: 'Low' },
   });
 
   const onSubmit = async (values: TicketFormValues) => {
     if (!user?.itemId) return;
-
     try {
       await createTicket({
         Title: values.title,
@@ -54,8 +74,42 @@ export const RequesterPortal = () => {
         Status: 'Open',
         RequesterId: user.itemId,
       });
-      reset(); // Reset form on success
-      refetch(); // Reload list
+      createForm.reset();
+      refetch();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  // --- Edit form ---
+  const editForm = useForm<TicketFormValues>({
+    defaultValues: { title: '', description: '', category: 'Software', priority: 'Low' },
+  });
+
+  const openEdit = (ticket: Ticket) => {
+    setEditingTicket(ticket);
+    editForm.reset({
+      title: ticket.Title,
+      description: ticket.Description,
+      category: ticket.Category,
+      priority: ticket.Priority,
+    });
+  };
+
+  const onEditSubmit = async (values: TicketFormValues) => {
+    if (!editingTicket) return;
+    try {
+      await updateTicket({
+        itemId: editingTicket.ItemId,
+        input: {
+          Title: values.title,
+          Description: values.description,
+          Category: values.category,
+          Priority: values.priority,
+        },
+      });
+      setEditingTicket(null);
+      refetch();
     } catch (e) {
       console.error(e);
     }
@@ -63,29 +117,31 @@ export const RequesterPortal = () => {
 
   const tickets = data?.getTickets?.items || [];
   const totalTickets = data?.getTickets?.totalCount || 0;
+  const { errors: createErrors } = createForm.formState;
+  const { errors: editErrors } = editForm.formState;
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-8 font-sans">
       <div className="border-b pb-4">
         <h1 className="text-3xl font-bold text-high-emphasis">Helpdesk Portal</h1>
         <p className="text-sm text-medium-emphasis">
-          Logged in as: <strong>{user?.firstName} {user?.lastName}</strong> (Requester) | ID: <code>{user?.itemId || 'undefined'}</code>
+          Logged in as: <strong>{user?.firstName} {user?.lastName}</strong> (Requester)
         </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Side: Submit Form */}
+        {/* Left: Create form */}
         <div className="lg:col-span-1 border p-6 rounded-lg bg-background shadow-sm space-y-4">
           <h2 className="text-xl font-bold text-high-emphasis">Submit Support Ticket</h2>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={createForm.handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-1">
               <label className="text-sm font-medium">Title *</label>
               <Input
                 placeholder="Brief summary of issue"
-                {...register('title', { required: 'Title is required' })}
+                {...createForm.register('title', { required: 'Title is required' })}
               />
-              {errors.title && (
-                <span className="text-xs text-destructive">{errors.title.message}</span>
+              {createErrors.title && (
+                <span className="text-xs text-destructive">{createErrors.title.message}</span>
               )}
             </div>
 
@@ -94,38 +150,24 @@ export const RequesterPortal = () => {
               <Textarea
                 placeholder="Explain the problem in detail"
                 rows={4}
-                {...register('description', { required: 'Description is required' })}
+                {...createForm.register('description', { required: 'Description is required' })}
               />
-              {errors.description && (
-                <span className="text-xs text-destructive">{errors.description.message}</span>
+              {createErrors.description && (
+                <span className="text-xs text-destructive">{createErrors.description.message}</span>
               )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label className="text-sm font-medium">Category</label>
-                <select
-                  className="flex h-11 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                  {...register('category')}
-                >
-                  <option value="Software">Software</option>
-                  <option value="Hardware">Hardware</option>
-                  <option value="Network">Network</option>
-                  <option value="Access">Access / IAM</option>
-                  <option value="Other">Other</option>
+                <select className={SELECT_CLASS} {...createForm.register('category')}>
+                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
-
               <div className="space-y-1">
                 <label className="text-sm font-medium">Priority</label>
-                <select
-                  className="flex h-11 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                  {...register('priority')}
-                >
-                  <option value="Low">Low</option>
-                  <option value="Medium">Medium</option>
-                  <option value="High">High</option>
-                  <option value="Urgent">Urgent</option>
+                <select className={SELECT_CLASS} {...createForm.register('priority')}>
+                  {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
               </div>
             </div>
@@ -136,7 +178,7 @@ export const RequesterPortal = () => {
           </form>
         </div>
 
-        {/* Right Side: Tickets List */}
+        {/* Right: Ticket list */}
         <div className="lg:col-span-2 space-y-4">
           <h2 className="text-xl font-bold text-high-emphasis">My Support Tickets</h2>
 
@@ -158,6 +200,7 @@ export const RequesterPortal = () => {
                     <th className="p-3 font-semibold">Priority</th>
                     <th className="p-3 font-semibold">Status</th>
                     <th className="p-3 font-semibold">Submitted</th>
+                    <th className="p-3 font-semibold"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -171,52 +214,44 @@ export const RequesterPortal = () => {
                       </td>
                       <td className="p-3">{ticket.Category}</td>
                       <td className="p-3">
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                          ticket.Priority === 'Urgent' ? 'bg-destructive/10 text-destructive' :
-                          ticket.Priority === 'High' ? 'bg-warning/10 text-warning-high-emphasis' :
-                          ticket.Priority === 'Medium' ? 'bg-primary/10 text-primary' :
-                          'bg-muted-foreground/10 text-medium-emphasis'
-                        }`}>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${priorityClass(ticket.Priority)}`}>
                           {ticket.Priority}
                         </span>
                       </td>
                       <td className="p-3">
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                          ticket.Status === 'Resolved' ? 'bg-success/10 text-success-high-emphasis' :
-                          ticket.Status === 'In Progress' ? 'bg-primary/10 text-primary' :
-                          'bg-warning/10 text-warning-high-emphasis'
-                        }`}>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${statusClass(ticket.Status)}`}>
                           {ticket.Status}
                         </span>
                       </td>
                       <td className="p-3 text-xs text-medium-emphasis">
                         {ticket.CreatedDate ? new Date(ticket.CreatedDate).toLocaleDateString() : '-'}
                       </td>
+                      <td className="p-3">
+                        {/* Only allow editing if still Open */}
+                        {ticket.Status === 'Open' && (
+                          <button
+                            onClick={() => openEdit(ticket)}
+                            className="p-1.5 rounded hover:bg-muted text-primary"
+                            title="Edit ticket"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
 
-              {/* Simple Pagination */}
               {totalTickets > 10 && (
                 <div className="p-3 border-t flex justify-between items-center bg-muted/20">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page === 1}
-                    onClick={() => setPage(p => p - 1)}
-                  >
+                  <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage(p => p - 1)}>
                     Previous
                   </Button>
                   <span className="text-xs text-medium-emphasis">
                     Page {page} of {Math.ceil(totalTickets / 10)}
                   </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page * 10 >= totalTickets}
-                    onClick={() => setPage(p => p + 1)}
-                  >
+                  <Button variant="outline" size="sm" disabled={page * 10 >= totalTickets} onClick={() => setPage(p => p + 1)}>
                     Next
                   </Button>
                 </div>
@@ -225,6 +260,62 @@ export const RequesterPortal = () => {
           )}
         </div>
       </div>
+
+      {/* Edit Ticket Dialog */}
+      <Dialog open={!!editingTicket} onOpenChange={(open) => !open && setEditingTicket(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Ticket</DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4 mt-2">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Title *</label>
+              <Input
+                {...editForm.register('title', { required: 'Title is required' })}
+              />
+              {editErrors.title && (
+                <span className="text-xs text-destructive">{editErrors.title.message}</span>
+              )}
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Description *</label>
+              <Textarea
+                rows={4}
+                {...editForm.register('description', { required: 'Description is required' })}
+              />
+              {editErrors.description && (
+                <span className="text-xs text-destructive">{editErrors.description.message}</span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Category</label>
+                <select className={SELECT_CLASS} {...editForm.register('category')}>
+                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Priority</label>
+                <select className={SELECT_CLASS} {...editForm.register('priority')}>
+                  {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" type="button" onClick={() => setEditingTicket(null)}>
+                Cancel
+              </Button>
+              <Button type="submit" loading={isUpdating}>
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -31,30 +31,36 @@ const createMenuItemWithChildren = (
 });
 
 export const menuItems: MenuItem[] = [
+  createMenuItem('my-tickets', 'My Tickets', '/my-tickets', 'CircleHelp', {
+    roles: ['requester'],
+  }),
+  createMenuItem('agent-dashboard', 'Agent Dashboard', '/agent-dashboard', 'LayoutDashboard', {
+    roles: ['agent'],
+  }),
   createMenuItem('dashboard', 'DASHBOARD', '/dashboard', 'LayoutDashboard'),
-  createMenuItem('finance', 'FINANCE', '/finance', 'ChartNoAxesCombined', {
-    roles: ['admin'],
-  }),
-  createMenuItem('iam', 'IAM', '/identity-management', 'Users', {
-    isIntegrated: true,
-  }),
-  createMenuItem('inventory', 'INVENTORY', '/inventory', 'Store', { isIntegrated: true }),
-  createMenuItem('invoices', 'INVOICES', '/invoices', 'ReceiptText', {
-    isIntegrated: true,
-  }),
+  // createMenuItem('finance', 'FINANCE', '/finance', 'ChartNoAxesCombined', {
+  //   roles: ['admin'],
+  // }),
+  // createMenuItem('iam', 'IAM', '/identity-management', 'Users', {
+  //   isIntegrated: true,
+  // }),
+  // createMenuItem('inventory', 'INVENTORY', '/inventory', 'Store', { isIntegrated: true }),
+  // createMenuItem('invoices', 'INVOICES', '/invoices', 'ReceiptText', {
+  //   isIntegrated: true,
+  // }),
 
-  createMenuItem('task-manager', 'TASK_MANAGER', '/task-manager', 'Presentation', {
-    isIntegrated: true,
-  }),
-  createMenuItem('mail', 'MAIL', '/mail/inbox', 'Inbox'),
-  createMenuItem('calendar', 'CALENDAR', '/calendar', 'Calendar'),
-  createMenuItem('activity-log', 'ACTIVITY_LOG', '/activity-log', 'FileClock', {}),
-  createMenuItem('timeline', 'TIMELINE', '/timeline', 'History', {
-    roles: ['admin'],
-  }),
-  createMenuItem('chat', 'CHAT', '/chat', 'MessageSquareText', {
-    roles: ['admin'],
-  }),
+  // createMenuItem('task-manager', 'TASK_MANAGER', '/task-manager', 'Presentation', {
+  //   isIntegrated: true,
+  // }),
+  // createMenuItem('mail', 'MAIL', '/mail/inbox', 'Inbox'),
+  // createMenuItem('calendar', 'CALENDAR', '/calendar', 'Calendar'),
+  // createMenuItem('activity-log', 'ACTIVITY_LOG', '/activity-log', 'FileClock', {}),
+  // createMenuItem('timeline', 'TIMELINE', '/timeline', 'History', {
+  //   roles: ['admin'],
+  // }),
+  // createMenuItem('chat', 'CHAT', '/chat', 'MessageSquareText', {
+  //   roles: ['admin'],
+  // }),
   createMenuItemWithChildren('file-manager', 'FILE_MANAGER', '/file-manager', 'Folder', [
     createMenuItem('my-files', 'MY_FILES', '/file-manager/my-files'),
     createMenuItem('shared-files', 'SHARED_WITH_ME', '/file-manager/shared-files'),

@@ -1,6 +1,7 @@
 import { useForm } from 'react-hook-form';
 import { useAuthDetails } from '@/auth/AuthContext';
 import { useGetTickets, useCreateTicket, useUpdateTicket } from '../hooks/use-helpdesk';
+import { useFileUpload } from '../hooks/use-file-upload';
 import { Button } from '@/components/ui-kit/button';
 import { Input } from '@/components/ui-kit/input';
 import { Textarea } from '@/components/ui-kit/textarea';
@@ -11,8 +12,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui-kit/dialog';
-import { Pencil } from 'lucide-react';
-import { useState } from 'react';
+import { Paperclip, Pencil, X } from 'lucide-react';
+import { useState, useRef } from 'react';
 import { Ticket } from '../types/helpdesk.types';
 
 interface TicketFormValues {
@@ -41,10 +42,79 @@ const statusClass = (s: string) => {
   return 'bg-warning/10 text-warning-high-emphasis';
 };
 
+/** Small reusable file picker */
+const FilePicker = ({
+  value,
+  onChange,
+  uploadFile,
+  isUploading,
+}: {
+  value: string | null;
+  onChange: (url: string | null) => void;
+  uploadFile: (file: File) => Promise<string | null>;
+  isUploading: boolean;
+}) => {
+  const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setError(null);
+      const url = await uploadFile(file);
+      if (url) {
+        onChange(url);
+      } else {
+        setError('Upload failed');
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Upload failed');
+    }
+    // Reset input so same file can be re-selected
+    if (inputRef.current) inputRef.current.value = '';
+  };
+
+  return (
+    <div className="space-y-1">
+      <label className="text-sm font-medium">Attachment</label>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          disabled={isUploading}
+          onClick={() => inputRef.current?.click()}
+          className="inline-flex items-center gap-1.5 text-xs border rounded px-3 py-1.5 hover:bg-muted disabled:opacity-50"
+        >
+          <Paperclip className="w-3.5 h-3.5" />
+          {isUploading ? 'Uploading…' : value ? 'Replace file' : 'Attach file'}
+        </button>
+        {value && (
+          <div className="flex items-center gap-1 text-xs text-primary">
+            <a href={value} target="_blank" rel="noopener noreferrer" className="underline truncate max-w-[180px]">
+              View attachment
+            </a>
+            <button type="button" onClick={() => onChange(null)} title="Remove">
+              <X className="w-3.5 h-3.5 text-destructive" />
+            </button>
+          </div>
+        )}
+      </div>
+      {error && <p className="text-xs text-destructive">{error}</p>}
+      <input ref={inputRef} type="file" className="hidden" onChange={handleFile} />
+    </div>
+  );
+};
+
 export const RequesterPortal = () => {
   const { user } = useAuthDetails();
   const [page, setPage] = useState(1);
   const [editingTicket, setEditingTicket] = useState<Ticket | null>(null);
+
+  // Attachment state for create & edit forms
+  const [createAttachmentUrl, setCreateAttachmentUrl] = useState<string | null>(null);
+  const [editAttachmentUrl, setEditAttachmentUrl] = useState<string | null>(null);
+
+  const { uploadFile, isUploading } = useFileUpload();
 
   const { data, isLoading, error, refetch } = useGetTickets(
     {
@@ -73,8 +143,10 @@ export const RequesterPortal = () => {
         Priority: values.priority,
         Status: 'Open',
         RequesterId: user.itemId,
+        AttachmentUrl: createAttachmentUrl || undefined,
       });
       createForm.reset();
+      setCreateAttachmentUrl(null);
       refetch();
     } catch (e) {
       console.error(e);
@@ -88,11 +160,12 @@ export const RequesterPortal = () => {
 
   const openEdit = (ticket: Ticket) => {
     setEditingTicket(ticket);
+    setEditAttachmentUrl(ticket.AttachmentUrl || null);
     editForm.reset({
       title: ticket.Title,
       description: ticket.Description,
-      category: ticket.Category,
-      priority: ticket.Priority,
+      category: ticket.Category || 'Software',
+      priority: ticket.Priority || 'Low',
     });
   };
 
@@ -106,6 +179,7 @@ export const RequesterPortal = () => {
           Description: values.description,
           Category: values.category,
           Priority: values.priority,
+          AttachmentUrl: editAttachmentUrl || undefined,
         },
       });
       setEditingTicket(null);
@@ -172,7 +246,14 @@ export const RequesterPortal = () => {
               </div>
             </div>
 
-            <Button type="submit" className="w-full mt-4" loading={isCreating}>
+            <FilePicker
+              value={createAttachmentUrl}
+              onChange={setCreateAttachmentUrl}
+              uploadFile={uploadFile}
+              isUploading={isUploading}
+            />
+
+            <Button type="submit" className="w-full mt-4" loading={isCreating || isUploading}>
               Submit Ticket
             </Button>
           </form>
@@ -199,7 +280,7 @@ export const RequesterPortal = () => {
                     <th className="p-3 font-semibold">Category</th>
                     <th className="p-3 font-semibold">Priority</th>
                     <th className="p-3 font-semibold">Status</th>
-                    <th className="p-3 font-semibold">Submitted</th>
+                    <th className="p-3 font-semibold">File</th>
                     <th className="p-3 font-semibold"></th>
                   </tr>
                 </thead>
@@ -214,7 +295,7 @@ export const RequesterPortal = () => {
                       </td>
                       <td className="p-3">{ticket.Category}</td>
                       <td className="p-3">
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${priorityClass(ticket.Priority)}`}>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${priorityClass(ticket.Priority || '')}`}>
                           {ticket.Priority}
                         </span>
                       </td>
@@ -223,11 +304,21 @@ export const RequesterPortal = () => {
                           {ticket.Status}
                         </span>
                       </td>
-                      <td className="p-3 text-xs text-medium-emphasis">
-                        {ticket.CreatedDate ? new Date(ticket.CreatedDate).toLocaleDateString() : '-'}
+                      <td className="p-3">
+                        {ticket.AttachmentUrl ? (
+                          <a
+                            href={ticket.AttachmentUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-xs text-primary underline"
+                          >
+                            <Paperclip className="w-3 h-3" /> View
+                          </a>
+                        ) : (
+                          <span className="text-xs text-medium-emphasis">—</span>
+                        )}
                       </td>
                       <td className="p-3">
-                        {/* Only allow editing if still Open */}
                         {ticket.Status === 'Open' && (
                           <button
                             onClick={() => openEdit(ticket)}
@@ -271,9 +362,7 @@ export const RequesterPortal = () => {
           <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4 mt-2">
             <div className="space-y-1">
               <label className="text-sm font-medium">Title *</label>
-              <Input
-                {...editForm.register('title', { required: 'Title is required' })}
-              />
+              <Input {...editForm.register('title', { required: 'Title is required' })} />
               {editErrors.title && (
                 <span className="text-xs text-destructive">{editErrors.title.message}</span>
               )}
@@ -281,10 +370,7 @@ export const RequesterPortal = () => {
 
             <div className="space-y-1">
               <label className="text-sm font-medium">Description *</label>
-              <Textarea
-                rows={4}
-                {...editForm.register('description', { required: 'Description is required' })}
-              />
+              <Textarea rows={4} {...editForm.register('description', { required: 'Description is required' })} />
               {editErrors.description && (
                 <span className="text-xs text-destructive">{editErrors.description.message}</span>
               )}
@@ -305,11 +391,18 @@ export const RequesterPortal = () => {
               </div>
             </div>
 
+            <FilePicker
+              value={editAttachmentUrl}
+              onChange={setEditAttachmentUrl}
+              uploadFile={uploadFile}
+              isUploading={isUploading}
+            />
+
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => setEditingTicket(null)}>
                 Cancel
               </Button>
-              <Button type="submit" loading={isUpdating}>
+              <Button type="submit" loading={isUpdating || isUploading}>
                 Save Changes
               </Button>
             </DialogFooter>

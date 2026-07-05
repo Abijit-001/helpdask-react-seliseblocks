@@ -3,6 +3,7 @@ import { useAuthDetails } from '@/auth/AuthContext';
 import { useGetTickets, useUpdateTicket } from '../hooks/use-helpdesk';
 import { useGetUsersQuery } from '@/modules/iam/hooks/use-iam';
 import { Button } from '@/components/ui-kit/button';
+import { Paperclip } from 'lucide-react';
 
 export const AgentDashboard = () => {
   const { user } = useAuthDetails();
@@ -10,11 +11,13 @@ export const AgentDashboard = () => {
   const [statusFilter, setStatusFilter] = useState<string>('All');
 
   // Fetch all tickets
-  const filterObject = statusFilter === 'All' 
-    ? {}
-    : { Status: statusFilter };
+  const filterObject = statusFilter === 'All' ? {} : { Status: statusFilter };
 
-  const { data: ticketsData, isLoading: isLoadingTickets, error: ticketsError } = useGetTickets({
+  const {
+    data: ticketsData,
+    isLoading: isLoadingTickets,
+    error: ticketsError,
+  } = useGetTickets({
     pageNo: page,
     pageSize: 10,
     filter: JSON.stringify(filterObject),
@@ -22,7 +25,7 @@ export const AgentDashboard = () => {
 
   // Fetch all users to list potential assignees
   const { data: usersData, isLoading: isLoadingUsers } = useGetUsersQuery({
-    page: 1,
+    page: 0,
     pageSize: 50,
   });
 
@@ -30,9 +33,8 @@ export const AgentDashboard = () => {
 
   // Extract all agents (users who have 'agent' role, or fallback to all users for easy testing)
   const allUsers = usersData?.data || [];
-  const agents = allUsers.filter(u => 
-    u.roles?.includes('agent') || 
-    u.memberships?.some(m => m.roles.includes('agent'))
+  const agents = allUsers.filter(
+    (u) => u.roles?.includes('agent') || u.memberships?.some((m) => m.roles.includes('agent'))
   );
   const assigneesList = agents.length > 0 ? agents : allUsers;
 
@@ -61,17 +63,20 @@ export const AgentDashboard = () => {
   const tickets = ticketsData?.getTickets?.items || [];
   const totalTickets = ticketsData?.getTickets?.totalCount || 0;
 
-
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-8 font-sans">
       <div className="border-b pb-4 flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-high-emphasis">Agent Dashboard</h1>
           <p className="text-sm text-medium-emphasis">
-            Logged in as: <strong>{user?.firstName} {user?.lastName}</strong> (Agent)
+            Logged in as:{' '}
+            <strong>
+              {user?.firstName} {user?.lastName}
+            </strong>{' '}
+            (Agent)
           </p>
         </div>
-        
+
         {/* Status Filters */}
         <div className="flex gap-2">
           {['All', 'Open', 'In Progress', 'Resolved'].map((status) => (
@@ -96,7 +101,9 @@ export const AgentDashboard = () => {
       {isLoadingTickets ? (
         <p className="text-sm text-medium-emphasis">Loading support queue...</p>
       ) : ticketsError ? (
-        <p className="text-sm text-destructive">Error loading support queue: {ticketsError.message}</p>
+        <p className="text-sm text-destructive">
+          Error loading support queue: {ticketsError.message}
+        </p>
       ) : tickets.length === 0 ? (
         <div className="border border-dashed p-12 rounded-lg text-center text-medium-emphasis bg-background">
           No support tickets found matching this filter.
@@ -110,6 +117,7 @@ export const AgentDashboard = () => {
                 <th className="p-4 font-semibold">Requester</th>
                 <th className="p-4 font-semibold">Category</th>
                 <th className="p-4 font-semibold">Priority</th>
+                <th className="p-4 font-semibold">File</th>
                 <th className="p-4 font-semibold">Assigned Agent</th>
                 <th className="p-4 font-semibold">Actions</th>
               </tr>
@@ -135,14 +143,35 @@ export const AgentDashboard = () => {
                   {/* Category */}
                   <td className="p-4 text-xs font-medium text-high-emphasis">{ticket.Category}</td>
 
+                  {/* Attachment */}
+                  <td className="p-4">
+                    {ticket.AttachmentUrl ? (
+                      <a
+                        href={ticket.AttachmentUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-primary underline"
+                      >
+                        <Paperclip className="w-3 h-3" /> View
+                      </a>
+                    ) : (
+                      <span className="text-xs text-medium-emphasis">—</span>
+                    )}
+                  </td>
+
                   {/* Priority badge */}
                   <td className="p-4">
-                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                      ticket.Priority === 'Urgent' ? 'bg-destructive/10 text-destructive' :
-                      ticket.Priority === 'High' ? 'bg-warning/10 text-warning-high-emphasis' :
-                      ticket.Priority === 'Medium' ? 'bg-primary/10 text-primary' :
-                      'bg-muted-foreground/10 text-medium-emphasis'
-                    }`}>
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                        ticket.Priority === 'Urgent'
+                          ? 'bg-destructive/10 text-destructive'
+                          : ticket.Priority === 'High'
+                            ? 'bg-warning/10 text-warning-high-emphasis'
+                            : ticket.Priority === 'Medium'
+                              ? 'bg-primary/10 text-primary'
+                              : 'bg-muted-foreground/10 text-medium-emphasis'
+                      }`}
+                    >
                       {ticket.Priority}
                     </span>
                   </td>
@@ -159,7 +188,7 @@ export const AgentDashboard = () => {
                         onChange={(e) => handleAssigneeChange(ticket.ItemId, e.target.value)}
                       >
                         <option value="">Unassigned</option>
-                        {assigneesList.map(u => (
+                        {assigneesList.map((u) => (
                           <option key={u.itemId} value={u.itemId}>
                             {u.firstName} {u.lastName || ''}
                           </option>
@@ -173,9 +202,11 @@ export const AgentDashboard = () => {
                     <div className="flex gap-1.5">
                       <select
                         className={`text-xs border rounded p-1 font-semibold ${
-                          ticket.Status === 'Resolved' ? 'bg-success/15 border-success text-success-high-emphasis' :
-                          ticket.Status === 'In Progress' ? 'bg-primary/15 border-primary text-primary' :
-                          'bg-warning/15 border-warning text-warning-high-emphasis'
+                          ticket.Status === 'Resolved'
+                            ? 'bg-success/15 border-success text-success-high-emphasis'
+                            : ticket.Status === 'In Progress'
+                              ? 'bg-primary/15 border-primary text-primary'
+                              : 'bg-warning/15 border-warning text-warning-high-emphasis'
                         }`}
                         value={ticket.Status}
                         disabled={isUpdating}
@@ -199,7 +230,7 @@ export const AgentDashboard = () => {
                 variant="outline"
                 size="sm"
                 disabled={page === 1}
-                onClick={() => setPage(p => p - 1)}
+                onClick={() => setPage((p) => p - 1)}
               >
                 Previous
               </Button>
@@ -210,7 +241,7 @@ export const AgentDashboard = () => {
                 variant="outline"
                 size="sm"
                 disabled={page * 10 >= totalTickets}
-                onClick={() => setPage(p => p + 1)}
+                onClick={() => setPage((p) => p + 1)}
               >
                 Next
               </Button>

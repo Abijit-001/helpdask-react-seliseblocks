@@ -17,6 +17,7 @@ import {
 import { TaskManagerPage } from '@/modules/task-manager';
 import { ProfilePage } from '@/modules/profile';
 import { UsersTablePage } from '@/modules/iam';
+import { RequesterPortal, AgentDashboard } from '@/modules/helpdesk';
 import { MainLayout } from '@/layout/main-layout/main-layout';
 import { AuthRoutes } from './auth.route';
 import { Guard } from '@/state/store/auth/guard';
@@ -49,6 +50,22 @@ export const AppRoutes = () => {
                 }
               >
                 <Route path="/dashboard" element={<DashboardPage />} />
+                <Route
+                  path="/my-tickets"
+                  element={
+                    <ProtectedRoute roles={['requester']}>
+                      <RequesterPortal />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/agent-dashboard"
+                  element={
+                    <ProtectedRoute roles={['agent']}>
+                      <AgentDashboard />
+                    </ProtectedRoute>
+                  }
+                />
                 <Route
                   path="/finance"
                   element={

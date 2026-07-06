@@ -90,7 +90,10 @@ const FilePicker = ({
         </button>
         {value && (
           <div className="flex items-center gap-1 text-xs text-primary">
-            <a href={value} target="_blank" rel="noopener noreferrer" className="underline truncate max-w-[180px]">
+            <a
+              href={value}
+              className="underline truncate max-w-[180px]"
+            >
               View attachment
             </a>
             <button type="button" onClick={() => onChange(null)} title="Remove">
@@ -199,7 +202,11 @@ export const RequesterPortal = () => {
       <div className="border-b pb-4">
         <h1 className="text-3xl font-bold text-high-emphasis">Helpdesk Portal</h1>
         <p className="text-sm text-medium-emphasis">
-          Logged in as: <strong>{user?.firstName} {user?.lastName}</strong> (Requester)
+          Logged in as:{' '}
+          <strong>
+            {user?.firstName} {user?.lastName}
+          </strong>{' '}
+          (Requester)
         </p>
       </div>
 
@@ -235,13 +242,21 @@ export const RequesterPortal = () => {
               <div className="space-y-1">
                 <label className="text-sm font-medium">Category</label>
                 <select className={SELECT_CLASS} {...createForm.register('category')}>
-                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  {CATEGORIES.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div className="space-y-1">
                 <label className="text-sm font-medium">Priority</label>
                 <select className={SELECT_CLASS} {...createForm.register('priority')}>
-                  {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
+                  {PRIORITIES.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -295,12 +310,16 @@ export const RequesterPortal = () => {
                       </td>
                       <td className="p-3">{ticket.Category}</td>
                       <td className="p-3">
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${priorityClass(ticket.Priority || '')}`}>
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-xs font-semibold ${priorityClass(ticket.Priority || '')}`}
+                        >
                           {ticket.Priority}
                         </span>
                       </td>
                       <td className="p-3">
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${statusClass(ticket.Status)}`}>
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-xs font-semibold ${statusClass(ticket.Status)}`}
+                        >
                           {ticket.Status}
                         </span>
                       </td>
@@ -336,13 +355,23 @@ export const RequesterPortal = () => {
 
               {totalTickets > 10 && (
                 <div className="p-3 border-t flex justify-between items-center bg-muted/20">
-                  <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage(p => p - 1)}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={page === 1}
+                    onClick={() => setPage((p) => p - 1)}
+                  >
                     Previous
                   </Button>
                   <span className="text-xs text-medium-emphasis">
                     Page {page} of {Math.ceil(totalTickets / 10)}
                   </span>
-                  <Button variant="outline" size="sm" disabled={page * 10 >= totalTickets} onClick={() => setPage(p => p + 1)}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={page * 10 >= totalTickets}
+                    onClick={() => setPage((p) => p + 1)}
+                  >
                     Next
                   </Button>
                 </div>
@@ -370,7 +399,10 @@ export const RequesterPortal = () => {
 
             <div className="space-y-1">
               <label className="text-sm font-medium">Description *</label>
-              <Textarea rows={4} {...editForm.register('description', { required: 'Description is required' })} />
+              <Textarea
+                rows={4}
+                {...editForm.register('description', { required: 'Description is required' })}
+              />
               {editErrors.description && (
                 <span className="text-xs text-destructive">{editErrors.description.message}</span>
               )}
@@ -380,13 +412,21 @@ export const RequesterPortal = () => {
               <div className="space-y-1">
                 <label className="text-sm font-medium">Category</label>
                 <select className={SELECT_CLASS} {...editForm.register('category')}>
-                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  {CATEGORIES.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div className="space-y-1">
                 <label className="text-sm font-medium">Priority</label>
                 <select className={SELECT_CLASS} {...editForm.register('priority')}>
-                  {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
+                  {PRIORITIES.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
